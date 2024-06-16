@@ -1,0 +1,85 @@
+## Part A: SQL Queries
+
+## Question A(i)
+SELECT request_id
+FROM requests r
+JOIN senators s ON r.senator_id = s.senator_id
+WHERE s.party = 'Democrat';
+
+## Question A(ii)
+WITH state_requests AS (
+    SELECT s.state, COUNT(DISTINCT r.senator_id) AS senator_request_count
+    FROM requests r
+    JOIN senators s ON r.senator_id = s.senator_id
+    GROUP BY s.state
+)
+SELECT state
+FROM state_requests
+WHERE senator_request_count = 1;
+
+## Part B: Architecture Design
+
+## Database Choice:
+## I would use a relational database (such as PostgreSQL) for the following reasons:
+## 1. Structured Data: The data is highly structured, making relational databases suitable.
+##  1A. Common Table Expression (CTEs)
+## 2. ACID Compliance: Ensures data consistency and integrity, especially when marking requests as duplicates.
+
+## Data Schema Design:
+## Tables:
+## requests (request_id, senator_id, title, recipient)
+## senators (senator_id, last_name, party, state)
+## duplicate_groups (group_id, created_at)
+## duplicate_requests (group_id, request_id)
+
+## Create Tables
+CREATE TABLE requests (
+    request_id INT PRIMARY KEY,
+    senator_id INT,
+    title VARCHAR(255),
+    recipient VARCHAR(255)
+);
+
+CREATE TABLE senators (
+    senator_id INT PRIMARY KEY,
+    last_name VARCHAR(255),
+    party VARCHAR(255),
+    state VARCHAR(2)
+);
+
+CREATE TABLE duplicate_groups (
+    group_id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE duplicate_requests (
+    group_id INT,
+    request_id INT,
+    PRIMARY KEY (group_id, request_id),
+    FOREIGN KEY (group_id) REFERENCES duplicate_groups(group_id),
+    FOREIGN KEY (request_id) REFERENCES requests(request_id)
+);
+
+## Efficient Tracking of Duplicate Requests:
+## When marking requests as duplicates, either create a new group_id in duplicate_groups and add entries to duplicate_requests, 
+## or add to an existing group if they are found to be related.
+
+## Workflow:
+
+## Marking Requests as Duplicates: If A and B are marked as duplicates
+INSERT INTO duplicate_groups (created_at) VALUES (NOW()) RETURNING group_id;
+
+## Assuming the returned group_id is stored in a variable named new_group_id
+INSERT INTO duplicate_requests (group_id, request_id) VALUES (new_group_id, A), (new_group_id, B);
+
+## If C is then marked as a duplicate of B: Retrieve the group_id for request B
+SELECT group_id FROM duplicate_requests WHERE request_id = B;
+
+## Assuming the retrieved group_id is stored in a variable named existing_group_id
+INSERT INTO duplicate_requests (group_id, request_id) VALUES (existing_group_id, C);
+
+## Exporting Duplicate Requests: Retrieve all requests belonging to each group
+SELECT g.group_id, r.request_id, r.title, r.recipient
+FROM duplicate_groups g
+JOIN duplicate_requests dr ON g.group_id = dr.group_id
+JOIN requests r ON dr.request_id = r.request_id;
