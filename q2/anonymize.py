@@ -1,4 +1,7 @@
-def anonymize_names_parta(text: str):
+import re
+import spacy
+
+def anonymize_names_parta(text: str) -> str:
     """
     Anonymizes names in the given text by replacing them with 'ANON'. Assume names are capitalized, and no other words are.
 
@@ -18,11 +21,9 @@ def anonymize_names_parta(text: str):
     Returns:
         str: The text with names anonymized.
     """
-    # Replace all capitalized words with 'ANON' (a regular expression might be helpful; see the `re` module)
-    anonymized_text = "..."
-    return anonymized_text
- 
-def anonymize_names_partb(text: str):
+    return re.sub(r'\b[A-Z][a-z]*\b', 'ANON', text)  # Replace capitalized words with 'ANON'
+
+def anonymize_names_partb(text: str) -> str:
     """
     Anonymizes names in the given text by replacing them with 'ANON'. Names can take any shape or form.
  
@@ -34,18 +35,26 @@ def anonymize_names_partb(text: str):
     Returns:
         str: The text with names anonymized.
     """
-    # Placeholder implementation: This needs heuristics to identify names
-    anonymized_text = text  # This is where the logic will go
+    # Placeholder implementation using Named Entity Recognition (NER) with spaCy
+    nlp = spacy.load("en_core_web_sm")
+    doc = nlp(text)
+    
+    anonymized_tokens = []
+    for token in doc:
+        if token.ent_type_ == "PERSON":  # Check if the token is recognized as a person
+            anonymized_tokens.append("ANON")
+        else:
+            anonymized_tokens.append(token.text)
+    
+    anonymized_text = " ".join(anonymized_tokens)  # Join the tokens back into a single string
     return anonymized_text
- 
- 
+
 if __name__ == '__main__':
     # Example usage
     parta_input_text = "Alice and Bob are talking to Charlie."
     print("Part A")
     print(f"{parta_input_text} -> {anonymize_names_parta(parta_input_text)}")
     print()
-
 
     # Example strings- you can add more test strings. No expectation that these all
     # pass!
